@@ -4,28 +4,37 @@ from object_detection.utils import dataset_util
 import PIL.Image
 import io
 import os
+import glob
+from lxml import etree
+
+from object_detection.utils import dataset_util
+from object_detection.utils import label_map_util
 
 flags = tf.app.flags
 flags.DEFINE_string('output_path', '', 'Path to output TFRecord')
+flags.DEFINE_string('label_map_path', 'data/flochart_label_map.pbtxt',
+                    'Path to label map proto')
+flags.DEFINE_string('dataset_directory', 'flowcharts',
+                    'Dataset directory')
 FLAGS = flags.FLAGS
 
 
 def create_tf_example(example, label_map_dict, dataset_directory):
   # TODO(user): Populate the following variables from your example.
-  height = example['height'] # Image height
-  width = example['width'] # Image width
+  height = int(example['height']) # Image height
+  width = int(example['width']) # Image width
   filename = example['file_name'] # Filename of the image. Empty if image is not from file
 
   full_path = os.path.join(dataset_directory, filename)
   with tf.gfile.GFile(full_path, 'rb') as fid:
     encoded_jpg = fid.read()
-  encoded_jpg_io = io.BytesIO(encoded_jpg)
-  image = PIL.Image.open(encoded_jpg_io)
+  encoded_image_data = io.BytesIO(encoded_jpg)
+  image = PIL.Image.open(encoded_image_data)
   if image.format != 'JPEG':
     raise ValueError('Image format not JPEG')
 
-  encoded_image_data = example['encoded_image_bytes'] # Encoded image bytes
-  image_format = example['image_format'] # b'jpeg' or b'png'
+  # encoded_image_data = example['encoded_image_bytes'] # Encoded image bytes
+  image_format = example['image_format'].encode('utf8') # b'jpeg' or b'png'
 
   xmins = [] # List of normalized left x coordinates in bounding box (1 per box)
   xmaxs = [] # List of normalized right x coordinates in bounding box
@@ -48,9 +57,9 @@ def create_tf_example(example, label_map_dict, dataset_directory):
   tf_example = tf.train.Example(features=tf.train.Features(feature={
       'image/height': dataset_util.int64_feature(height),
       'image/width': dataset_util.int64_feature(width),
-      'image/filename': dataset_util.bytes_feature(filename),
-      'image/source_id': dataset_util.bytes_feature(filename),
-      'image/encoded': dataset_util.bytes_feature(encoded_image_data),
+      'image/filename': dataset_util.bytes_feature(example['file_name'].encode('utf8')),
+      'image/source_id': dataset_util.bytes_feature(example['file_name'].encode('utf8')),
+      'image/encoded': dataset_util.bytes_feature(encoded_jpg),
       'image/format': dataset_util.bytes_feature(image_format),
       'image/object/bbox/xmin': dataset_util.float_list_feature(xmins),
       'image/object/bbox/xmax': dataset_util.float_list_feature(xmaxs),
@@ -66,9 +75,17 @@ def main(_):
   writer = tf.python_io.TFRecordWriter(FLAGS.output_path)
 
   # TODO(user): Write code to read in your dataset to examples variable
+  label_map_dict = label_map_util.get_label_map_dict(FLAGS.label_map_path)
 
-  for example in examples:
-    tf_example = create_tf_example(example)
+  for xml_example in glob.glob(os.path.join(FLAGS.dataset_directory, "*.xml"))[:5]:
+
+    with tf.gfile.GFile(xml_example, 'r') as fid:
+        xml_str = fid.read()
+    print(xml_example)
+    xml = etree.fromstring(xml_str)
+    example = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']
+
+    tf_example = create_tf_example(example, label_map_dict, FLAGS.dataset_directory)
     writer.write(tf_example.SerializeToString())
 
   writer.close()
