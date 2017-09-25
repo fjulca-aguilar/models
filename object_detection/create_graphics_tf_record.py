@@ -9,14 +9,20 @@ from lxml import etree
 
 from object_detection.utils import dataset_util
 from object_detection.utils import label_map_util
+from object_detection.data.flowchart_files import train_set, val_set, test_set
 
 flags = tf.app.flags
 flags.DEFINE_string('output_path', '', 'Path to output TFRecord')
-flags.DEFINE_string('label_map_path', 'data/flochart_label_map.pbtxt',
+flags.DEFINE_string('label_map_path', 'object_detection/data/flochart_label_map.pbtxt',
                     'Path to label map proto')
-flags.DEFINE_string('dataset_directory', 'flowcharts',
+flags.DEFINE_string('dataset_directory', 'object_detection/flowcharts',
                     'Dataset directory')
+flags.DEFINE_string('file_names', 'train_set',
+                    'Dataset directory')
+
 FLAGS = flags.FLAGS
+
+
 
 
 def create_tf_example(example, label_map_dict, dataset_directory):
@@ -77,16 +83,28 @@ def main(_):
   # TODO(user): Write code to read in your dataset to examples variable
   label_map_dict = label_map_util.get_label_map_dict(FLAGS.label_map_path)
 
-  for xml_example in glob.glob(os.path.join(FLAGS.dataset_directory, "*.xml"))[:5]:
+  file_names = FLAGS.file_names
+  if file_names == 'train_set':
+    files = train_set
+  elif file_names == 'val_set':
+    files = val_set
+  elif file_names == 'test_set':
+    files = test_set
 
-    with tf.gfile.GFile(xml_example, 'r') as fid:
-        xml_str = fid.read()
-    print(xml_example)
-    xml = etree.fromstring(xml_str)
-    example = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']
+  for example in files:
+    example = os.path.join(FLAGS.dataset_directory, example + ".xml")
+    if os.path.isfile(example):
+      with tf.gfile.GFile(example, 'r') as fid:
+          xml_str = fid.read()
+      print(example)
+      xml = etree.fromstring(xml_str)
+      example_dict = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']
 
-    tf_example = create_tf_example(example, label_map_dict, FLAGS.dataset_directory)
-    writer.write(tf_example.SerializeToString())
+      tf_example = create_tf_example(example_dict, label_map_dict, FLAGS.dataset_directory)
+      writer.write(tf_example.SerializeToString())
+    else:
+      print('Not found file: %s', example)
+
 
   writer.close()
 
