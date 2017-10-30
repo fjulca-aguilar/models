@@ -9,7 +9,7 @@ def convert(input_file, output_file):
 				fout.write(tmp_text % (label, label_id, label))
 				label_id += 1
 
-convert("../../../../../Documentos/doutorado/program/resources/system_configuration/parameters/flow_chart/fc_symbol_labels.txt", 
-	'data/flochart_label_map.pbtxt')
+convert("../../../../../Documentos/doutorado/program/resources/system_configuration/parameters/crohme/listSymbolCrohme2013noJunk.txt", 
+	'data/math_label_map.pbtxt')
 
 
