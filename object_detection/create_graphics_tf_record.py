@@ -9,7 +9,7 @@ from lxml import etree
 
 from object_detection.utils import dataset_util
 from object_detection.utils import label_map_util
-from object_detection.data.flowchart_files import train_set, val_set, test_set
+from object_detection.data.evaluation_sets import evaluation_set
 
 flags = tf.app.flags
 flags.DEFINE_string('output_path', '', 'Path to output TFRecord')
@@ -17,10 +17,12 @@ flags.DEFINE_string('label_map_path', 'object_detection/data/flochart_label_map.
                     'Path to label map proto')
 flags.DEFINE_string('dataset_directory', 'object_detection/flowcharts',
                     'Dataset directory')
-flags.DEFINE_string('file_names', 'train_set',
+flags.DEFINE_string('file_names', 'flowchart_train_set',
                     'Dataset directory')
 
 FLAGS = flags.FLAGS
+
+
 
 
 
@@ -30,6 +32,7 @@ def create_tf_example(example, label_map_dict, dataset_directory):
   height = int(example['height']) # Image height
   width = int(example['width']) # Image width
   filename = example['file_name'] # Filename of the image. Empty if image is not from file
+  # print(filename)
 
   full_path = os.path.join(dataset_directory, filename)
   with tf.gfile.GFile(full_path, 'rb') as fid:
@@ -77,36 +80,66 @@ def create_tf_example(example, label_map_dict, dataset_directory):
   return tf_example
 
 
-def main(_):
-  writer = tf.python_io.TFRecordWriter(FLAGS.output_path)
+def generate_tf_record_for_files(output_path, label_map_path, file_names, dataset_directory):
+  writer = tf.python_io.TFRecordWriter(output_path)
 
   # TODO(user): Write code to read in your dataset to examples variable
-  label_map_dict = label_map_util.get_label_map_dict(FLAGS.label_map_path)
+  label_map_dict = label_map_util.get_label_map_dict(label_map_path)
+  # print(label_map_dict)
 
-  file_names = FLAGS.file_names
-  if file_names == 'train_set':
-    files = train_set
-  elif file_names == 'val_set':
-    files = val_set
-  elif file_names == 'test_set':
-    files = test_set
+  files = evaluation_set[file_names]
+  if files is None:
+    print('invalid set')
+    print('valid sets: %s' % evaluation_set.keys())
+    return
 
   for example in files:
-    example = os.path.join(FLAGS.dataset_directory, example + ".xml")
+    example = os.path.join(dataset_directory, example + ".xml")
     if os.path.isfile(example):
       with tf.gfile.GFile(example, 'r') as fid:
           xml_str = fid.read()
-      print(example)
+      # print(example)
       xml = etree.fromstring(xml_str)
       example_dict = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']
 
-      tf_example = create_tf_example(example_dict, label_map_dict, FLAGS.dataset_directory)
+      tf_example = create_tf_example(example_dict, label_map_dict, dataset_directory)
       writer.write(tf_example.SerializeToString())
     else:
       print('Not found file: %s', example)
 
-
   writer.close()
+
+def main(_):
+  generate_tf_record_for_files(FLAGS.output_path, FLAGS.label_map_path, 
+    FLAGS.file_names, FLAGS.dataset_directory)
+  # writer = tf.python_io.TFRecordWriter(FLAGS.output_path)
+
+  # # TODO(user): Write code to read in your dataset to examples variable
+  # label_map_dict = label_map_util.get_label_map_dict(FLAGS.label_map_path)
+  # print(label_map_dict)
+
+  # files = evaluation_set[FLAGS.file_names]
+  # if files is None:
+  #   print('invalid set')
+  #   print('valid sets: %s' % evaluation_set.keys())
+  #   return
+
+  # for example in files:
+  #   example = os.path.join(FLAGS.dataset_directory, example + ".xml")
+  #   if os.path.isfile(example):
+  #     with tf.gfile.GFile(example, 'r') as fid:
+  #         xml_str = fid.read()
+  #     print(example)
+  #     xml = etree.fromstring(xml_str)
+  #     example_dict = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']
+
+  #     tf_example = create_tf_example(example_dict, label_map_dict, FLAGS.dataset_directory)
+  #     writer.write(tf_example.SerializeToString())
+  #   else:
+  #     print('Not found file: %s', example)
+
+
+
 
 
 if __name__ == '__main__':

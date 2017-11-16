@@ -85,8 +85,12 @@ flags.DEFINE_string('input_config_path', '',
 flags.DEFINE_string('model_config_path', '',
                     'Path to a model_pb2.DetectionModel config file.')
 
+flags.DEFINE_string('gpudev','',
+                    'Select a GPU Device.')
+
 FLAGS = flags.FLAGS
 
+os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpudev
 
 def get_configs_from_pipeline_file():
   """Reads training configuration from a pipeline_pb2.TrainEvalPipelineConfig.

@@ -55,6 +55,7 @@ from object_detection.protos import input_reader_pb2
 from object_detection.protos import model_pb2
 from object_detection.protos import pipeline_pb2
 from object_detection.utils import label_map_util
+import os
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -76,7 +77,11 @@ flags.DEFINE_string('input_config_path', '',
 flags.DEFINE_string('model_config_path', '',
                     'Path to a model_pb2.DetectionModel config file.')
 
+flags.DEFINE_string('gpudev','',
+                    'Select a GPU Device.')
 FLAGS = flags.FLAGS
+
+os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpudev
 
 
 def get_configs_from_pipeline_file():
