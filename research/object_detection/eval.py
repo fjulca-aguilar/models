@@ -81,6 +81,9 @@ flags.DEFINE_string('gpudev','',
 flags.DEFINE_boolean('run_once', False, 'Option to only run a single pass of '
                      'evaluation. Overrides the `max_evals` parameter in the '
                      'provided config.')
+
+flags.DEFINE_boolean('mini_batch', False, 'Option to evaluate a subset of samples.')
+
 FLAGS = flags.FLAGS
 
 os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpudev
@@ -129,9 +132,31 @@ def main(unused_argv):
   if FLAGS.run_once:
     eval_config.max_evals = 1
 
-  evaluator.evaluate(create_input_dict_fn, model_fn, eval_config, categories,
+  if FLAGS.mini_batch:
+    eval_config.max_evals = 1
+    eval_config.num_visualizations = 100
+    eval_config.num_examples = 100
+    input_reader_config.shuffle = True
+    create_input_dict_fn = functools.partial(
+      input_reader_builder.build,
+      input_config)
+    eval_config.visualization_export_dir = os.path.join(FLAGS.eval_dir, 'images')
+    metrics = evaluator.evaluate(create_input_dict_fn, model_fn, eval_config, categories,
                      FLAGS.checkpoint_dir, FLAGS.eval_dir)
 
+  else:
+    metrics = evaluator.evaluate(create_input_dict_fn, model_fn, eval_config, categories,
+                     FLAGS.checkpoint_dir, FLAGS.eval_dir)
+  process_metrics(metrics)
+
+def process_metrics(metrics):
+  if FLAGS.mini_batch:
+    with open(os.path.join(FLAGS.eval_dir, 'minibatch_map.txt'), 'w') as f:
+      f.write(str(metrics).replace(', ', '\n').replace(': ', '\t'))
+
+  else: 
+    with open(os.path.join(FLAGS.eval_dir, 'map.txt'), 'w') as f:
+      f.write(str(metrics).replace(', ', '\n').replace(': ', '\t'))
 
 if __name__ == '__main__':
   tf.app.run()
