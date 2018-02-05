@@ -115,6 +115,9 @@ def main(unused_argv):
   eval_config = configs['eval_config']
   input_config = configs['eval_input_config']
 
+  if FLAGS.mini_batch:
+    input_config.shuffle = True
+
   model_fn = functools.partial(
       model_builder.build,
       model_config=model_config,
@@ -136,16 +139,9 @@ def main(unused_argv):
     eval_config.max_evals = 1
     eval_config.num_visualizations = 100
     eval_config.num_examples = 100
-    input_reader_config.shuffle = True
-    create_input_dict_fn = functools.partial(
-      input_reader_builder.build,
-      input_config)
     eval_config.visualization_export_dir = os.path.join(FLAGS.eval_dir, 'images')
-    metrics = evaluator.evaluate(create_input_dict_fn, model_fn, eval_config, categories,
-                     FLAGS.checkpoint_dir, FLAGS.eval_dir)
-
-  else:
-    metrics = evaluator.evaluate(create_input_dict_fn, model_fn, eval_config, categories,
+    os.makedirs(eval_config.visualization_export_dir, exist_ok=True)
+  metrics = evaluator.evaluate(create_input_dict_fn, model_fn, eval_config, categories,
                      FLAGS.checkpoint_dir, FLAGS.eval_dir)
   process_metrics(metrics)
 
